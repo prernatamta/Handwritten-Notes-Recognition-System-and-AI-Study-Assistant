@@ -4,30 +4,19 @@ import numpy as np
 import easyocr
 from PIL import Image
 
-
-
-
 st.set_page_config(
     page_title="Handwritten Notes Digitizer",
     page_icon="📝",
     layout="wide"
 )
-
 st.title("Handwritten Notes Digitizer")
 st.write(
     "Phase 2 Prototype: Image Preprocessing + OCR + Editable Text"
 )
 
-
-
-
 @st.cache_resource
 def load_ocr():
     return easyocr.Reader(["en"], gpu=False)
-
-
-
-
 def preprocess_image(image):
     """
     Detects blue handwriting, crops the relevant region,
