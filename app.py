@@ -60,10 +60,8 @@ def preprocess_image(image):
 
         x, y, w, h = cv2.boundingRect(contour)
 
-        # Ignore very small noise
         if w > 5 and h > 5:
             boxes.append((x, y, w, h))
-
 
     if boxes:
 
@@ -80,7 +78,6 @@ def preprocess_image(image):
             for x, y, w, h in boxes
         )
 
-        # Add padding
         padding = 30
 
         x1 = max(0, x1 - padding)
@@ -99,12 +96,8 @@ def preprocess_image(image):
         cropped = img[y1:y2, x1:x2]
 
     else:
-        # If blue handwriting is not detected,
-        # use the complete image
         cropped = img
-
-
-
+        
     height, width = cropped.shape[:2]
 
     scale = 2
@@ -114,16 +107,10 @@ def preprocess_image(image):
         (width * scale, height * scale),
         interpolation=cv2.INTER_CUBIC
     )
-
-
-
     gray = cv2.cvtColor(
         resized,
         cv2.COLOR_RGB2GRAY
     )
-
-
-
     clahe = cv2.createCLAHE(
         clipLimit=2.0,
         tileGridSize=(8, 8)
@@ -131,16 +118,12 @@ def preprocess_image(image):
 
     enhanced = clahe.apply(gray)
 
-    
-
     denoised = cv2.GaussianBlur(
         enhanced,
         (3, 3),
         0
     )
-
     
-
     thresholded = cv2.adaptiveThreshold(
         denoised,
         255,
@@ -152,35 +135,24 @@ def preprocess_image(image):
 
     return cropped, resized, thresholded
 
-
-
-
 uploaded_file = st.file_uploader(
     "Upload an image of your handwritten notes",
     type=["jpg", "jpeg", "png"]
 )
 
-
-
-
 if uploaded_file is not None:
 
     image = Image.open(uploaded_file).convert("RGB")
 
-
-
     col1, col2 = st.columns(2)
-
     with col1:
-
         st.subheader("Original Image")
 
         st.image(
             image,
             use_container_width=True
         )
-
-
+        
     cropped_image, enhanced_image, processed_image = (
         preprocess_image(image)
     )
@@ -194,15 +166,12 @@ if uploaded_file is not None:
             use_container_width=True
         )
 
-
-
     st.subheader("Processed Image")
 
     st.image(
         processed_image,
         use_container_width=True
     )
-
 
     if st.button(
         "Extract Text",
@@ -215,8 +184,6 @@ if uploaded_file is not None:
 
             reader = load_ocr()
 
-
-
             results_color = reader.readtext(
                 enhanced_image,
                 detail=1,
@@ -224,15 +191,12 @@ if uploaded_file is not None:
                 mag_ratio=2
             )
 
-
-
             results_processed = reader.readtext(
                 processed_image,
                 detail=1,
                 paragraph=False,
                 mag_ratio=2
             )
-
 
             text_color = "\n".join(
                 [
