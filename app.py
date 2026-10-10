@@ -22,14 +22,8 @@ def preprocess_image(image):
     Detects blue handwriting, crops the relevant region,
     and prepares the image for OCR.
     """
-
-    # Convert PIL image to NumPy array
     img = np.array(image)
-
-    # Convert RGB to HSV
     hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-
-
 
     lower_blue = np.array([90, 40, 30])
     upper_blue = np.array([140, 255, 255])
@@ -39,8 +33,6 @@ def preprocess_image(image):
         lower_blue,
         upper_blue
     )
-
-
 
     kernel = np.ones((3, 3), np.uint8)
 
@@ -55,9 +47,7 @@ def preprocess_image(image):
         cv2.MORPH_CLOSE,
         kernel
     )
-
-
-
+    
     contours, _ = cv2.findContours(
         blue_mask,
         cv2.RETR_EXTERNAL,
