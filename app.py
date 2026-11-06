@@ -1,287 +1,262 @@
+
+import os
+os.environ["USE_TF"] = "0"
+
 import streamlit as st
 import cv2
 import numpy as np
-import easyocr
+import torch
+
 from PIL import Image
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+
 
 st.set_page_config(
     page_title="Handwritten Notes Digitizer",
-    page_icon="📝",
+    page_icon="📖",
     layout="wide"
 )
+
 st.title("Handwritten Notes Digitizer")
+st.subheader("Line Segmentation + TrOCR Handwriting Recognition")
+
 st.write(
-    "Phase 2 Prototype: Image Preprocessing + OCR + Editable Text"
+    "Upload a handwritten page. The system will separate "
+    "individual lines and recognise them using TrOCR."
 )
+
 
 @st.cache_resource
-def load_ocr():
-    return easyocr.Reader(["en"], gpu=False)
-def preprocess_image(image):
-    """
-    Detects blue handwriting, crops the relevant region,
-    and prepares the image for OCR.
-    """
-    img = np.array(image)
-    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+def load_trocr():
 
-    lower_blue = np.array([90, 40, 30])
-    upper_blue = np.array([140, 255, 255])
+    model_name = "microsoft/trocr-base-handwritten"
 
-    blue_mask = cv2.inRange(
-        hsv,
-        lower_blue,
-        upper_blue
-    )
+    processor = TrOCRProcessor.from_pretrained(model_name)
 
-    kernel = np.ones((3, 3), np.uint8)
+    model = VisionEncoderDecoderModel.from_pretrained(model_name)
 
-    blue_mask = cv2.morphologyEx(
-        blue_mask,
-        cv2.MORPH_OPEN,
-        kernel
-    )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    blue_mask = cv2.morphologyEx(
-        blue_mask,
-        cv2.MORPH_CLOSE,
-        kernel
-    )
-    
-    contours, _ = cv2.findContours(
-        blue_mask,
-        cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE
-    )
+    model.to(device)
+    model.eval()
 
-    boxes = []
+    return processor, model, device
 
-    for contour in contours:
 
-        x, y, w, h = cv2.boundingRect(contour)
+def separate_lines(image):
 
-        if w > 5 and h > 5:
-            boxes.append((x, y, w, h))
+    image_array = np.array(image.convert("RGB"))
 
-    if boxes:
+    gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
 
-        x1 = min(x for x, y, w, h in boxes)
-        y1 = min(y for x, y, w, h in boxes)
+    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
-        x2 = max(
-            x + w
-            for x, y, w, h in boxes
-        )
-
-        y2 = max(
-            y + h
-            for x, y, w, h in boxes
-        )
-
-        padding = 30
-
-        x1 = max(0, x1 - padding)
-        y1 = max(0, y1 - padding)
-
-        x2 = min(
-            img.shape[1],
-            x2 + padding
-        )
-
-        y2 = min(
-            img.shape[0],
-            y2 + padding
-        )
-
-        cropped = img[y1:y2, x1:x2]
-
-    else:
-        cropped = img
-        
-    height, width = cropped.shape[:2]
-
-    scale = 2
-
-    resized = cv2.resize(
-        cropped,
-        (width * scale, height * scale),
-        interpolation=cv2.INTER_CUBIC
-    )
-    gray = cv2.cvtColor(
-        resized,
-        cv2.COLOR_RGB2GRAY
-    )
-    clahe = cv2.createCLAHE(
-        clipLimit=2.0,
-        tileGridSize=(8, 8)
-    )
-
-    enhanced = clahe.apply(gray)
-
-    denoised = cv2.GaussianBlur(
-        enhanced,
-        (3, 3),
-        0
-    )
-    
-    thresholded = cv2.adaptiveThreshold(
-        denoised,
+    binary = cv2.adaptiveThreshold(
+        blurred,
         255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        21,
-        5
+        cv2.THRESH_BINARY_INV,
+        31,
+        15
     )
 
-    return cropped, resized, thresholded
+    height, width = binary.shape
+
+    horizontal_kernel = cv2.getStructuringElement(
+        cv2.MORPH_RECT,
+        (max(25, width // 30), 1)
+    )
+
+    horizontal_lines = cv2.morphologyEx(
+        binary,
+        cv2.MORPH_OPEN,
+        horizontal_kernel
+    )
+
+    text_mask = cv2.subtract(binary, horizontal_lines)
+
+    projection = np.sum(text_mask > 0, axis=1)
+
+    threshold = max(2, int(width * 0.0015))
+
+    active_rows = np.where(projection > threshold)[0]
+
+    if len(active_rows) == 0:
+        return [], text_mask
+
+    groups = []
+
+    start = active_rows[0]
+    previous = active_rows[0]
+
+    merge_gap = max(8, int(height * 0.008))
+
+    for row in active_rows[1:]:
+
+        if row - previous <= merge_gap:
+            previous = row
+
+        else:
+            groups.append((start, previous))
+            start = row
+            previous = row
+
+    groups.append((start, previous))
+
+    line_images = []
+
+    padding = 12
+
+    for y1, y2 in groups:
+
+        if y2 - y1 < 8:
+            continue
+
+        line_region = text_mask[y1:y2 + 1, :]
+
+        columns = np.where(np.sum(line_region > 0, axis=0) > 0)[0]
+
+        if len(columns) == 0:
+            continue
+
+        x1 = max(0, columns[0] - padding)
+        x2 = min(width, columns[-1] + padding)
+
+        top = max(0, y1 - padding)
+        bottom = min(height, y2 + padding)
+
+        line_image = image_array[top:bottom, x1:x2]
+
+        if line_image.size > 0:
+            line_images.append(Image.fromarray(line_image))
+
+    return line_images, text_mask
+
+
+def recognize_line(line_image, processor, model, device):
+
+    pixel_values = processor(
+        images=line_image.convert("RGB"),
+        return_tensors="pt"
+    ).pixel_values.to(device)
+
+    with torch.no_grad():
+
+        generated_ids = model.generate(
+            pixel_values,
+            max_new_tokens=128,
+            num_beams=4
+        )
+
+    text = processor.batch_decode(
+        generated_ids,
+        skip_special_tokens=True
+    )[0]
+
+    return text.strip()
+
 
 uploaded_file = st.file_uploader(
-    "Upload an image of your handwritten notes",
+    "Upload handwritten notes",
     type=["jpg", "jpeg", "png"]
 )
+
 
 if uploaded_file is not None:
 
     image = Image.open(uploaded_file).convert("RGB")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Original Image")
+    st.subheader("Original Image")
 
-        st.image(
-            image,
-            use_container_width=True
-        )
-        
-    cropped_image, enhanced_image, processed_image = (
-        preprocess_image(image)
-    )
+    st.image(image, use_container_width=True)
 
-    with col2:
+    if st.button("Separate Handwritten Lines"):
 
-        st.subheader("Detected Text Region")
+        lines, text_mask = separate_lines(image)
 
-        st.image(
-            cropped_image,
-            use_container_width=True
-        )
+        st.session_state["lines"] = lines
+        st.session_state["recognized_text"] = ""
 
-    st.subheader("Processed Image")
+    if "lines" in st.session_state:
 
-    st.image(
-        processed_image,
-        use_container_width=True
-    )
+        lines = st.session_state["lines"]
 
-    if st.button(
-        "Extract Text",
-        type="primary"
-    ):
+        st.subheader("Detected Lines")
 
-        with st.spinner(
-            "Recognizing handwritten text..."
-        ):
+        if len(lines) == 0:
 
-            reader = load_ocr()
-
-            results_color = reader.readtext(
-                enhanced_image,
-                detail=1,
-                paragraph=False,
-                mag_ratio=2
-            )
-
-            results_processed = reader.readtext(
-                processed_image,
-                detail=1,
-                paragraph=False,
-                mag_ratio=2
-            )
-
-            text_color = "\n".join(
-                [
-                    text
-                    for _, text, confidence in results_color
-                    if confidence > 0.20
-                ]
-            )
-
-            text_processed = "\n".join(
-                [
-                    text
-                    for _, text, confidence in results_processed
-                    if confidence > 0.20
-                ]
-            )
-
-           
-            if text_color.strip():
-
-                extracted_text = text_color
-
-            elif text_processed.strip():
-
-                extracted_text = text_processed
-
-            else:
-
-                extracted_text = ""
-
-   
-
-        if extracted_text.strip():
-
-            st.session_state[
-                "extracted_text"
-            ] = extracted_text
-
-            st.success(
-                "Text extracted successfully."
+            st.warning(
+                "No handwritten lines detected. Try another image "
+                "with clearer handwriting."
             )
 
         else:
 
-            st.warning(
-                "No text was detected. "
-                "Try a clearer image with good lighting."
-            )
+            st.success(f"{len(lines)} lines detected.")
 
+            for index, line in enumerate(lines):
 
+                st.write(f"Line {index + 1}")
 
-if "extracted_text" in st.session_state:
+                st.image(
+                    line,
+                    use_container_width=False,
+                    width=650
+                )
 
-    st.subheader("Extracted Text")
+            st.divider()
 
-    edited_text = st.text_area(
-        "You can correct the OCR result here:",
-        value=st.session_state["extracted_text"],
-        height=300
-    )
+            if st.button("Recognise All Lines"):
 
-    # Save edited text
-    st.session_state[
-        "extracted_text"
-    ] = edited_text
+                with st.spinner(
+                    "Loading TrOCR and recognising handwriting..."
+                ):
 
+                    processor, model, device = load_trocr()
 
+                    recognized_lines = []
 
-    download_text = edited_text.encode(
-        "utf-8"
-    )
+                    progress = st.progress(0)
 
-    st.download_button(
-        label="Download Text File",
-        data=download_text,
-        file_name="digitized_notes.txt",
-        mime="text/plain"
-    )
+                    for index, line in enumerate(lines):
 
+                        text = recognize_line(
+                            line,
+                            processor,
+                            model,
+                            device
+                        )
 
+                        recognized_lines.append(text)
+
+                        progress.progress(
+                            (index + 1) / len(lines)
+                        )
+
+                    final_text = "\n".join(recognized_lines)
+
+                    st.session_state["recognized_text"] = final_text
+
+            if st.session_state.get("recognized_text"):
+
+                st.subheader("Recognised Paragraph")
+
+                edited_text = st.text_area(
+                    "Edit the extracted text:",
+                    value=st.session_state["recognized_text"],
+                    height=300
+                )
+
+                st.download_button(
+                    "Download Text File",
+                    data=edited_text,
+                    file_name="handwritten_notes.txt",
+                    mime="text/plain"
+                )
 
 
 st.divider()
 
 st.caption(
-    "Handwritten Notes Digitization using "
-    "OpenCV and EasyOCR"
+    "Technologies: Python | OpenCV | PyTorch | TrOCR | Streamlit"
 )
