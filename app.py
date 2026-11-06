@@ -24,8 +24,8 @@ st.subheader(
 )
 
 st.write(
-    "Upload handwritten notes. The system detects individual "
-    "lines and recognises them using TrOCR."
+    "Upload handwritten notes, separate individual lines, "
+    "select the required lines and recognise them."
 )
 
 
@@ -54,9 +54,7 @@ def load_trocr():
 
 def separate_lines(image):
 
-    image_array = np.array(
-        image.convert("RGB")
-    )
+    image_array = np.array(image.convert("RGB"))
 
     gray = cv2.cvtColor(
         image_array,
@@ -65,15 +63,11 @@ def separate_lines(image):
 
     height, width = gray.shape
 
-    # Improve image quality
-
     blurred = cv2.GaussianBlur(
         gray,
         (3, 3),
         0
     )
-
-    # Convert image into binary format
 
     binary = cv2.adaptiveThreshold(
         blurred,
@@ -84,7 +78,7 @@ def separate_lines(image):
         15
     )
 
-    # Detect long horizontal notebook lines
+    # Detect horizontal notebook lines
 
     horizontal_kernel = cv2.getStructuringElement(
         cv2.MORPH_RECT,
@@ -97,14 +91,14 @@ def separate_lines(image):
         horizontal_kernel
     )
 
-    # Remove notebook lines only from segmentation mask
+    # Remove notebook lines from detection mask
 
     text_mask = cv2.subtract(
         binary,
         horizontal_lines
     )
 
-    # Small morphological closing to connect nearby character strokes
+    # Connect nearby character strokes
 
     connect_kernel = cv2.getStructuringElement(
         cv2.MORPH_RECT,
@@ -117,14 +111,12 @@ def separate_lines(image):
         connect_kernel
     )
 
-    # Calculate horizontal pixel projection
+    # Horizontal projection
 
     projection = np.sum(
         text_mask > 0,
         axis=1
     ).astype(np.float32)
-
-    # Smooth projection
 
     smooth_projection = np.convolve(
         projection,
@@ -135,10 +127,7 @@ def separate_lines(image):
     maximum = np.max(smooth_projection)
 
     if maximum == 0:
-
         return [], text_mask
-
-    # Dynamic threshold
 
     threshold = max(
         3,
@@ -150,10 +139,9 @@ def separate_lines(image):
     )[0]
 
     if len(active_rows) == 0:
-
         return [], text_mask
 
-    # Group active rows into handwritten lines
+    # Group rows
 
     groups = []
 
@@ -184,7 +172,7 @@ def separate_lines(image):
         (start, previous)
     )
 
-    # Create individual line images
+    # Crop individual lines
 
     line_images = []
 
@@ -232,8 +220,6 @@ def separate_lines(image):
             int(y2) + padding_y + 1
         )
 
-        # Crop from original image
-
         line_image = image_array[
             top:bottom,
             x1:x2
@@ -248,7 +234,7 @@ def separate_lines(image):
     return line_images, text_mask
 
 
-# Recognise individual line
+# Recognise one handwritten line
 
 def recognize_line(
     line_image,
@@ -299,9 +285,22 @@ if uploaded_file is not None:
         use_container_width=True
     )
 
-    # Line segmentation
+    # Detect lines
 
     if st.button("Separate Handwritten Lines"):
+
+        # Clear previous selections
+
+        old_count = len(
+            st.session_state.get("lines", [])
+        )
+
+        for i in range(old_count):
+
+            st.session_state.pop(
+                "include_line_" + str(i),
+                None
+            )
 
         with st.spinner("Detecting handwritten lines..."):
 
@@ -313,20 +312,19 @@ if uploaded_file is not None:
 
             st.session_state["debug_mask"] = text_mask
 
+            st.session_state["selection_initialized"] = True
+
     # Display detected lines
 
     if "lines" in st.session_state:
 
         lines = st.session_state["lines"]
 
-        st.subheader("Line Detection Result")
+        st.subheader("Detected Handwritten Lines")
 
         if len(lines) == 0:
 
-            st.error(
-                "No handwritten lines detected. "
-                "Try uploading a clearer image."
-            )
+            st.error("No handwritten lines detected.")
 
         else:
 
@@ -334,78 +332,145 @@ if uploaded_file is not None:
                 str(len(lines)) + " handwritten lines detected."
             )
 
-            # Display cleaned detection mask
+            # Show detection mask
 
             with st.expander("View processed detection mask"):
 
                 st.image(
                     st.session_state["debug_mask"],
-                    caption="White pixels represent detected text",
+                    caption="Detected text regions",
                     clamp=True,
                     use_container_width=True
                 )
 
-            # Display individual lines
+            st.write(
+                "Uncheck the lines you do not want to recognise."
+            )
 
-            st.subheader("Detected Handwritten Lines")
+            # Select all and clear all
 
-            for index, line in enumerate(lines):
+            col1, col2 = st.columns(2)
 
-                st.write(
-                    "Line " + str(index + 1)
-                )
+            with col1:
 
-                st.image(
-                    line,
-                    width=650
-                )
+                if st.button("Select All Lines"):
+
+                    for i in range(len(lines)):
+
+                        st.session_state[
+                            "include_line_" + str(i)
+                        ] = True
+
+                    st.rerun()
+
+            with col2:
+
+                if st.button("Clear All Lines"):
+
+                    for i in range(len(lines)):
+
+                        st.session_state[
+                            "include_line_" + str(i)
+                        ] = False
+
+                    st.rerun()
 
             st.divider()
 
-            # OCR recognition
+            # Individual line selection
 
-            if st.button("Recognise All Lines"):
+            selected_lines = []
 
-                try:
+            for index, line in enumerate(lines):
 
-                    with st.spinner(
-                        "Loading TrOCR and recognising handwriting..."
-                    ):
+                col1, col2 = st.columns([1, 3])
 
-                        processor, model, device = load_trocr()
+                with col1:
 
-                        recognized_lines = []
-
-                        progress = st.progress(0)
-
-                        for index, line in enumerate(lines):
-
-                            text = recognize_line(
-                                line,
-                                processor,
-                                model,
-                                device
-                            )
-
-                            recognized_lines.append(text)
-
-                            progress.progress(
-                                (index + 1) / len(lines)
-                            )
-
-                        final_text = "\n".join(
-                            recognized_lines
-                        )
-
-                        st.session_state["recognized_text"] = final_text
-
-                except Exception as error:
-
-                    st.error(
-                        "Recognition error: " + str(error)
+                    include = st.checkbox(
+                        "Include Line " + str(index + 1),
+                        value=True,
+                        key="include_line_" + str(index)
                     )
 
-            # Display editable text
+                with col2:
+
+                    st.image(
+                        line,
+                        width=650
+                    )
+
+                if include:
+
+                    selected_lines.append(
+                        (index, line)
+                    )
+
+            st.divider()
+
+            st.info(
+                str(len(selected_lines))
+                + " of "
+                + str(len(lines))
+                + " lines selected."
+            )
+
+            # Recognise selected lines
+
+            if st.button("Recognise Selected Lines"):
+
+                if len(selected_lines) == 0:
+
+                    st.warning(
+                        "Please select at least one line."
+                    )
+
+                else:
+
+                    try:
+
+                        with st.spinner(
+                            "Loading TrOCR and recognising selected lines..."
+                        ):
+
+                            processor, model, device = load_trocr()
+
+                            recognized_lines = []
+
+                            progress = st.progress(0)
+
+                            for position, (index, line) in enumerate(
+                                selected_lines
+                            ):
+
+                                text = recognize_line(
+                                    line,
+                                    processor,
+                                    model,
+                                    device
+                                )
+
+                                recognized_lines.append(text)
+
+                                progress.progress(
+                                    (position + 1) / len(selected_lines)
+                                )
+
+                            final_text = "\n".join(
+                                recognized_lines
+                            )
+
+                            st.session_state[
+                                "recognized_text"
+                            ] = final_text
+
+                    except Exception as error:
+
+                        st.error(
+                            "Recognition error: " + str(error)
+                        )
+
+            # Editable output
 
             if st.session_state.get("recognized_text"):
 
