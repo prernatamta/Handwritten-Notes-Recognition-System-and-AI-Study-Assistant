@@ -23,16 +23,16 @@ def get_groq_client():
 # AI RESPONSE
 # =====================================================
 
+
 def get_ai_response(prompt):
 
     try:
 
         client = get_groq_client()
 
-        model_name = st.secrets.get(
-            "GROQ_MODEL",
-            "openai/gpt-oss-120b"
-        )
+        model_name = "openai/gpt-oss-120b"
+
+        st.write("Active Groq model:", model_name)
 
         response = client.chat.completions.create(
 
@@ -44,22 +44,12 @@ def get_ai_response(prompt):
                     "content": """
 You are NoteWise AI, an intelligent academic study assistant.
 
-Your responsibilities:
-- Help students understand their study material.
-- Explain difficult concepts clearly.
-- Generate accurate summaries.
-- Identify important information.
-- Prepare examination questions.
-- Create topic-wise revision material.
+Help students understand study material, generate summaries,
+identify important information, prepare examination questions
+and create revision material.
 
-Guidelines:
-1. Use clear and structured explanations.
-2. Use headings and bullet points.
-3. Preserve technical terminology.
-4. Give examples where useful.
-5. Do not fabricate information from the student's notes.
-6. Clearly distinguish information from the notes
-   from additional explanations.
+Use clear headings, structured explanations and examples.
+Do not fabricate information from the student's notes.
 """
                 },
                 {
@@ -82,6 +72,7 @@ Guidelines:
     except Exception as error:
 
         return "Groq API Error: " + str(error)
+
 
 
 # =====================================================
