@@ -1,14 +1,25 @@
-Handwritten Notes Recognition System and AI Study Assistant
+# Scriptify
 
-A Python-based web application that converts handwritten notes into editable digital text using image processing and EasyOCR.
+*From Handwriting to Smart Learning.*
 
-Technologies: Python, Streamlit, OpenCV, NumPy, EasyOCR, Pillow.
+Scriptify is a Python-based application that converts handwritten notes into editable digital text and helps students study smarter with AI-powered learning tools.
 
-Features: Image upload, image preprocessing, text extraction, text editing, and .txt download.
+## Features
+- Handwritten text recognition using Microsoft TrOCR.
+- Image preprocessing and line segmentation using OpenCV.
+- Editable extracted text with TXT and PDF export.
+- AI-generated summaries, important information, and key points.
+- Interactive MCQ quizzes with automatic scoring.
+- Topic-wise revision and question answering.
 
-Future Scope: Note summarization, key-point extraction, and quiz generation.
+## Tech Stack
+Python, Streamlit, OpenCV, TrOCR, PyTorch, Groq API, NumPy.
 
-How to Run
+## Run Locally
 
+```bash
 pip install -r requirements.txt
-python -m streamlit run app.py
+streamlit run app.py
+```
+
+**Configuration:** Add your Groq API key to `.streamlit/secrets.toml` before using the Study Assistant.
