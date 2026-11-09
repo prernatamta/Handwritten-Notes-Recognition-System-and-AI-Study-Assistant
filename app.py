@@ -1,3 +1,4 @@
+
 import os
 
 os.environ["USE_TF"] = "0"
@@ -32,7 +33,7 @@ from study_assistant import render_study_assistant
 # =====================================================
 
 st.set_page_config(
-    page_title="NoteWise AI",
+    page_title="Scriptify",
     page_icon="📘",
     layout="wide"
 )
@@ -466,7 +467,7 @@ def create_pdf(text):
 
     story = [
         Paragraph(
-            "NoteWise AI - Digitized Notes",
+            "Scriptify - Digitized Notes",
             styles["Title"]
         ),
         Spacer(1, 20)
@@ -505,7 +506,7 @@ def create_pdf(text):
 
 with st.sidebar:
 
-    st.markdown("# NoteWise AI")
+    st.markdown("# Scriptify")
 
     st.caption("Your personal learning workspace")
 
@@ -551,7 +552,7 @@ apply_theme(
 if page == "Home":
 
     page_header(
-        "Welcome to NoteWise AI",
+        "Welcome to Scriptify",
         "Transform handwritten notes into an intelligent digital study experience."
     )
 
@@ -894,5 +895,5 @@ elif page == "Study Assistant":
 st.divider()
 
 st.caption(
-    "NoteWise AI | Handwritten Notes Digitization and AI Study Assistant"
+    "Scriptify | Handwritten Notes Digitization and AI Study Assistant"
 )
