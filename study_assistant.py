@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import re
@@ -36,7 +35,7 @@ def get_ai_response(prompt):
                 {
                     "role": "system",
                     "content": """
-You are NoteWise AI, an intelligent academic study assistant.
+You are Scriptify, an intelligent academic study assistant.
 
 Help students understand study material, generate summaries,
 identify important information, prepare examination questions
@@ -705,7 +704,7 @@ def render_study_assistant(notes):
         )
 
         if st.button(
-            "Ask NoteWise AI",
+            "Ask Scriptify",
             key="sa_ask",
             use_container_width=True
         ):
