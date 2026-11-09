@@ -1,7 +1,8 @@
 streamlit
 opencv-python
 numpy
-Pillow
-easyocr
 torch
-torchvision
+transformers
+Pillow
+groq
+reportlab
