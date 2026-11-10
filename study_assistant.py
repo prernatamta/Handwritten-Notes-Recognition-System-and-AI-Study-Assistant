@@ -255,11 +255,6 @@ Highlight the most important topics.
 
     return run_study_task(task, notes)
 
-
-# =====================================================
-# ASK QUESTIONS ABOUT NOTES
-# =====================================================
-
 def ask_question(notes, question):
 
     if not question or not question.strip():
@@ -284,49 +279,29 @@ Requirements:
 
     return run_study_task(task, notes)
 
-
-# =====================================================
-# QUIZ INTERFACE
-# =====================================================
-
 def render_interactive_quiz():
-
     quiz_data = st.session_state.get("sa_quiz_data")
-
     if not quiz_data:
         return
-
     if "error" in quiz_data:
         st.error(quiz_data["error"])
         return
-
     questions = quiz_data["questions"]
-
     if not questions:
         st.warning("No questions are available.")
         return
-
     st.markdown("---")
     st.subheader("Your Quiz")
-
     st.caption(
         f"{len(questions)} questions | Select one answer for each question."
     )
-
     submitted = st.session_state.get("sa_quiz_submitted", False)
-
     selected_answers = {}
-
     with st.form("sa_interactive_quiz_form"):
-
         for index, question in enumerate(questions):
-
             st.markdown(f"### Question {index + 1}")
-
             st.write(question["question"])
-
             option_keys = ["A", "B", "C", "D"]
-
             selected = st.radio(
                 "Choose your answer:",
                 options=option_keys,
