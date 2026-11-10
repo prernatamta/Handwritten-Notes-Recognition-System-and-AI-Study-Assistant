@@ -719,12 +719,10 @@ elif page == "Digitize Notes":
         col1, col2 = st.columns(2)
 
         with col1:
-
             if st.button(
                 "Select All",
                 use_container_width=True
             ):
-
                 for i in range(total):
 
                     st.session_state[
@@ -734,37 +732,30 @@ elif page == "Digitize Notes":
                 st.rerun()
 
         with col2:
-
             if st.button(
                 "Deselect All",
                 use_container_width=True
             ):
-
                 for i in range(total):
 
                     st.session_state[
                         f"line_select_{i}"
                     ] = False
-
                 st.rerun()
 
         selected_indices = []
 
         for start in range(0, total, 2):
-
             columns = st.columns(2)
 
             for offset in range(2):
-
                 index = start + offset
 
                 if index >= total:
                     continue
 
                 with columns[offset]:
-
                     with st.container(border=True):
-
                         st.markdown(
                             f"**Line {index + 1}**"
                         )
@@ -781,7 +772,6 @@ elif page == "Digitize Notes":
                         )
 
                         if checked:
-
                             selected_indices.append(index)
 
         st.info(
@@ -792,35 +782,25 @@ elif page == "Digitize Notes":
             "Recognise Selected Lines with TrOCR",
             use_container_width=True
         ):
-
             if not selected_indices:
-
                 st.warning(
                     "Select at least one line."
                 )
-
             else:
-
                 selected_lines = [
                     lines[i] for i in selected_indices
                 ]
 
                 try:
-
                     extracted = recognise_selected_lines(
                         selected_lines
                     )
-
                     st.session_state.extracted_text = extracted
-
                     st.session_state.study_notes = extracted
-
                     st.success(
                         "Selected lines recognised successfully."
-                    )
-
+                   )
                 except Exception as error:
-
                     st.error(
                         "TrOCR Error: " + str(error)
                     )
@@ -837,15 +817,10 @@ elif page == "Digitize Notes":
                 height=300,
                 key="digitized_text_editor"
             )
-
             st.session_state.extracted_text = edited_text
-
             st.session_state.study_notes = edited_text
-
             col1, col2 = st.columns(2)
-
             with col1:
-
                 st.download_button(
                     "Download TXT",
                     data=edited_text,
@@ -853,9 +828,7 @@ elif page == "Digitize Notes":
                     mime="text/plain",
                     use_container_width=True
                 )
-
             with col2:
-
                 st.download_button(
                     "Download PDF",
                     data=create_pdf(edited_text),
@@ -864,36 +837,20 @@ elif page == "Digitize Notes":
                     use_container_width=True
                 )
 
-
-# =====================================================
-# STUDY ASSISTANT PAGE
-# =====================================================
-
 elif page == "Study Assistant":
-
     page_header(
         "AI Study Assistant",
         "Your personal AI-powered learning and revision workspace."
     )
-
     notes = st.text_area(
         "Study material",
         value=st.session_state.study_notes or st.session_state.extracted_text,
         height=220,
         key="study_material_editor"
     )
-
     st.session_state.study_notes = notes
-
     render_study_assistant(notes)
-
-
-# =====================================================
-# FOOTER
-# =====================================================
-
 st.divider()
-
 st.caption(
     "Scriptify | Handwritten Notes Digitization and AI Study Assistant"
 )
