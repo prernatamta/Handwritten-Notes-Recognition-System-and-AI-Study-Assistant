@@ -49,23 +49,14 @@ Do not fabricate information from the student's notes.
     except Exception as error:
         return "Groq API Error: " + str(error)
 
-
-# =====================================================
-# COMMON STUDY TASK
-# =====================================================
-
 def run_study_task(task, notes):
-
     if not notes or not notes.strip():
         return "Please provide study notes first."
-
     prompt = f"""
 TASK:
 {task}
-
 STUDENT NOTES:
 {notes}
-
 INSTRUCTIONS:
 - Base your answer primarily on the supplied notes.
 - Organise your answer using meaningful headings.
@@ -77,35 +68,21 @@ INSTRUCTIONS:
 
     return get_ai_response(prompt)
 
-
-# =====================================================
-# SMART SUMMARY
-# =====================================================
-
 def generate_summary(notes):
-
     task = """
 Create a detailed but concise academic summary.
-
 Include:
 1. Main topic and introduction.
 2. Important concepts.
 3. Explanations of key ideas.
 4. Important definitions and terminology.
 5. A short final revision summary.
-
 Use clear headings and structured paragraphs.
 """
 
     return run_study_task(task, notes)
 
-
-# =====================================================
-# IMPORTANT INFORMATION
-# =====================================================
-
 def generate_important_info(notes):
-
     task = """
 Extract important information from these notes.
 
@@ -119,13 +96,7 @@ Identify:
 
 Explain each item briefly.
 """
-
     return run_study_task(task, notes)
-
-
-# =====================================================
-# KEY POINTS
-# =====================================================
 
 def generate_key_points(notes):
 
