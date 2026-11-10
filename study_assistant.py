@@ -113,11 +113,6 @@ Requirements:
 
     return run_study_task(task, notes)
 
-
-# =====================================================
-# QUIZ GENERATOR - STRUCTURED JSON
-# =====================================================
-
 def generate_quiz(notes, number_of_questions=10, difficulty="Mixed"):
 
     if not notes or not notes.strip():
@@ -165,14 +160,12 @@ IMPORTANT:
 STUDENT NOTES:
 {notes}
 """
-
     try:
         response = get_ai_response(prompt)
 
         if response.startswith("Groq API Error:"):
             return {"error": response}
 
-        # Remove possible Markdown code fences
         cleaned_response = response.strip()
         cleaned_response = re.sub(
             r"^```(?:json)?\s*",
@@ -186,7 +179,6 @@ STUDENT NOTES:
             cleaned_response
         )
 
-        # Extract JSON if extra text was returned
         start = cleaned_response.find("{")
         end = cleaned_response.rfind("}")
 
@@ -241,11 +233,6 @@ STUDENT NOTES:
 
     except Exception as error:
         return {"error": "Quiz generation error: " + str(error)}
-
-
-# =====================================================
-# TOPIC-WISE REVISION
-# =====================================================
 
 def generate_revision_guide(notes):
 
