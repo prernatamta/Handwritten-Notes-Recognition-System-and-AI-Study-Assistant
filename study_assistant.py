@@ -3,32 +3,17 @@ import json
 import re
 from groq import Groq
 
-
-# =====================================================
-# GROQ CLIENT
-# =====================================================
-
 def get_groq_client():
-
     api_key = st.secrets.get("GROQ_API_KEY")
-
     if not api_key:
         raise ValueError(
             "GROQ_API_KEY is missing from .streamlit/secrets.toml"
         )
-
     return Groq(api_key=api_key)
 
-
-# =====================================================
-# AI RESPONSE
-# =====================================================
-
 def get_ai_response(prompt):
-
     try:
         client = get_groq_client()
-
         response = client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[
